@@ -54,12 +54,12 @@ const Sidebar = ({ user, watchlist }: SidebarProps) => {
                 </Link>
             </nav>
 
-            <div className="flex flex-col gap-1 min-h-0">
-                <p className="side-label">Watching</p>
+            <div className="flex min-h-0 flex-col gap-1">
+                <p className="side-label shrink-0">Watching</p>
                 {watchlist.length === 0 ? (
                     <p className="px-2.5 text-[12.5px] text-faint">Star a stock to pin it here.</p>
                 ) : (
-                    <ul className="flex flex-col gap-0.5">
+                    <ul className="scrollbar-hide-default flex min-h-0 flex-col gap-0.5 overflow-y-auto">
                         {watchlist.map(({ symbol, company }) => (
                             <li key={symbol}>
                                 <Link
