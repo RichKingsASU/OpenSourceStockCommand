@@ -31,7 +31,31 @@ export const signUpWithEmail = async ({ email, password, fullName, country, inve
 
 export const signInWithEmail = async ({ email, password }: SignInFormData) => {
     try {
-        const response = await auth.api.signInEmail({ body: { email, password } })
+        let response;
+        try {
+            response = await auth.api.signInEmail({ body: { email, password } });
+        } catch (signInErr: unknown) {
+            // When in memory mode, if user is not found, automatically register them so sign in works seamlessly
+            if (!process.env.MONGODB_URI) {
+                try {
+                    response = await auth.api.signUpEmail({
+                        body: {
+                            email,
+                            password,
+                            name: email.split('@')[0],
+                            country: 'US',
+                            investmentGoals: 'Growth',
+                            riskTolerance: 'Medium',
+                            preferredIndustry: 'Technology',
+                        }
+                    });
+                } catch {
+                    throw signInErr;
+                }
+            } else {
+                throw signInErr;
+            }
+        }
 
         // Update lastActiveAt
         if (response) {
@@ -39,7 +63,7 @@ export const signInWithEmail = async ({ email, password }: SignInFormData) => {
                 // Dynamic import or ensure path is correct
                 const { connectToDatabase } = await import("@/database/mongoose");
                 const mongoose = await connectToDatabase();
-                const db = mongoose.connection.db;
+                const db = mongoose?.connection?.db;
                 if (db) {
                     await db.collection('user').updateOne(
                         { email },
@@ -52,9 +76,10 @@ export const signInWithEmail = async ({ email, password }: SignInFormData) => {
         }
 
         return { success: true, data: response }
-    } catch (e) {
+    } catch (e: unknown) {
         console.log('Sign in failed', e)
-        return { success: false, error: 'Sign in failed' }
+        const errorMsg = e instanceof Error ? e.message : 'Sign in failed';
+        return { success: false, error: errorMsg }
     }
 }
 
@@ -128,4 +153,3 @@ export const signOut = async () => {
         return { success: false, error: 'Sign out failed' }
     }
 }
-

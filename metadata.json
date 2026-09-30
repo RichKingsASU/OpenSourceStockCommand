@@ -1,0 +1,6 @@
+{
+  "name": "OpenStock",
+  "description": "An open-source stock and market command center with real-time charts, watchlists, alerts, and market insights.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

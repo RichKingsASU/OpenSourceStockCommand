@@ -5,7 +5,6 @@ const MONGODB_URI = process.env.MONGODB_URI;
 // FIX: Set Google DNS and force IPv4 to avoid querySrv ECONNREFUSED
 import dns from 'dns';
 try {
-    // This is often more effective than setServers for Node 17+
     if (dns.setDefaultResultOrder) {
         dns.setDefaultResultOrder('ipv4first');
     }
@@ -15,10 +14,12 @@ try {
     console.error('Failed to set custom DNS:', e);
 }
 
+mongoose.set('bufferCommands', false);
+
 declare global {
     var mongooseCache: {
         conn: typeof mongoose | null;
-        promise: Promise<typeof mongoose> | null;
+        promise: Promise<typeof mongoose | null> | null;
     }
 }
 
@@ -28,25 +29,33 @@ if (!cached) {
     cached = global.mongooseCache = { conn: null, promise: null };
 }
 
-export const connectToDatabase = async () => {
+export const connectToDatabase = async (): Promise<typeof mongoose | null> => {
     if (!MONGODB_URI) {
-        throw new Error("MongoDB URI is missing");
+        return null;
     }
 
     if (cached.conn) return cached.conn;
 
     if (!cached.promise) {
-        cached.promise = mongoose.connect(MONGODB_URI, { bufferCommands: false, family: 4 });
+        cached.promise = mongoose
+            .connect(MONGODB_URI, { bufferCommands: false, family: 4, serverSelectionTimeoutMS: 2000 })
+            .catch((err) => {
+                console.warn('MongoDB not connected — using in-memory fallback:', err.message);
+                cached.promise = null;
+                return null;
+            });
     }
 
     try {
         cached.conn = await cached.promise;
     }
-    catch (err) {
+    catch {
         cached.promise = null;
-        throw err;
+        return null;
     }
 
-    console.log(`MongoDB Connected ${MONGODB_URI.replace(/\/\/[^@]*@/, '//***@')} in ${process.env.NODE_ENV}`);
+    if (cached.conn) {
+        console.log(`MongoDB Connected ${MONGODB_URI.replace(/\/\/[^@]*@/, '//***@')} in ${process.env.NODE_ENV}`);
+    }
     return cached.conn;
 }
